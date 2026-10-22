@@ -1,0 +1,64 @@
+name: SHAHEEN Cloudflare Pages Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: shaheen-imgbed-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify deployment files
+        run: |
+          test -d frontend-dist || {
+            echo "ERROR: frontend-dist directory not found"
+            exit 1
+          }
+
+          echo "Frontend directory found."
+          echo "Checking Functions directory..."
+
+          if [ -d functions ]; then
+            echo "Functions directory found."
+          else
+            echo "WARNING: functions directory not found."
+          fi
+
+      - name: Create Cloudflare Pages project
+        uses: cloudflare/wrangler-action@v4
+        continue-on-error: true
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create shaheen-imgbed --production-branch=main
+
+      - name: Deploy website
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy frontend-dist --project-name=shaheen-imgbed --branch=main
